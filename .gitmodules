@@ -7,3 +7,6 @@
 [submodule "lib/ring_buffer_lib"]
 	path = lib/ring_buffer_lib
 	url = https://github.com/rppicomidi/ring_buffer_lib
+[submodule "lib/pimoroni-pico"]
+	path = lib/pimoroni-pico
+	url = https://github.com/pimoroni/pimoroni-pico.git

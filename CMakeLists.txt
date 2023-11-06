@@ -13,9 +13,11 @@ pico_sdk_init()
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/midi_uart_lib)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/usb_midi_host)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/pimoroni-pico/common)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/pimoroni-pico/drivers/encoder)
 
 add_executable(${target_proj}
-    midi2usbhost.c
+    midi2usbhost.cpp
 )
 if(DEFINED ENV{MIDI_UART_NUM})
     set(MIDI_UART_NUM $ENV{MIDI_UART_NUM})
@@ -46,11 +48,10 @@ else()
     # not defined, so will be UART 1. Can enable UART 0 debugging
     pico_enable_stdio_uart(${target_proj} 1)
 endif()
-target_include_directories(${target_proj} PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+target_include_directories(${target_proj} PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/lib/pimoroni-pico/)
 
 target_link_options(${target_proj} PRIVATE -Xlinker --print-memory-usage)
 target_compile_options(${target_proj} PRIVATE -Wall -Wextra)
-target_link_libraries(${target_proj} midi_uart_lib tinyusb_host tinyusb_board ring_buffer_lib pico_stdlib usb_midi_host_app_driver)
+target_link_libraries(${target_proj} midi_uart_lib tinyusb_host tinyusb_board ring_buffer_lib pico_stdlib usb_midi_host_app_driver encoder)
 
 pico_add_extra_outputs(${target_proj})
-

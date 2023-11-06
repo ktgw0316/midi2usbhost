@@ -2,7 +2,7 @@
  * @file Pico-USB-Host-MIDI-Adapter.c
  * @brief A USB Host to Serial Port MIDI adapter that runs on a Raspberry Pi
  * Pico board
- * 
+ *
  * MIT License
 
  * Copyright (c) 2022 rppicomidi
@@ -24,18 +24,21 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- * 
+ *
  */
-#include <stdio.h>
+#include <cstdio>
 #include "pico/stdlib.h"
 #include "pico/binary_info.h"
 #include "midi_uart_lib.h"
 #include "bsp/board_api.h"
 #include "tusb.h"
 #include "usb_midi_host.h"
+#include "encoder.hpp"
+
 // On-board LED mapping. If no LED, set to NO_LED_GPIO
-const uint NO_LED_GPIO = 255;
-const uint LED_GPIO = 25;
+constexpr uint NO_LED_GPIO = 255;
+constexpr uint LED_GPIO = 25;
+
 // UART selection Pin mapping. You can move these for your design if you want to
 // Make sure all these values are consistent with your choice of midi_uart
 // The default is to use UART 1, but you are free to use UART 0 if you make
@@ -54,6 +57,17 @@ const uint LED_GPIO = 25;
 static void *midi_uart_instance;
 static uint8_t midi_dev_addr = 0;
 
+using namespace encoder;
+
+// Create an encoder on the 3 ADC pins, using PIO 0 and State Machine 0
+constexpr uint PIN_A = 26;  // The A channel pin
+constexpr uint PIN_B = 28;  // The B channel pin
+constexpr uint PIN_C = 27;  // The common pin
+Encoder enc(pio0, 0, {PIN_A, PIN_B}, PIN_C);
+
+constexpr int GM_PROGRAM_NUMBER_SIZE = 128;
+int sound = 0;
+
 static void blink_led(void)
 {
     static absolute_time_t previous_timestamp = {0};
@@ -64,7 +78,7 @@ static void blink_led(void)
     if (NO_LED_GPIO == LED_GPIO)
         return;
     absolute_time_t now = get_absolute_time();
-    
+
     int64_t diff = absolute_time_diff_us(previous_timestamp, now);
     if (diff > 1000000) {
         board_led_write(led_state);
@@ -81,18 +95,34 @@ static void poll_midi_uart_rx(bool connected)
     uint8_t nread = midi_uart_poll_rx_buffer(midi_uart_instance, rx, sizeof(rx));
     if (nread > 0 && connected && tuh_midih_get_num_tx_cables(midi_dev_addr) >= 1)
     {
-        uint32_t nwritten = tuh_midi_stream_write(midi_dev_addr, 0,rx, nread);
+        uint32_t nwritten = tuh_midi_stream_write(midi_dev_addr, 0, rx, nread);
         if (nwritten != nread) {
             TU_LOG1("Warning: Dropped %lu bytes receiving from UART MIDI In\r\n", nread - nwritten);
         }
     }
 }
 
-int main() {
+static void write_midi_uart_program_change(int sound)
+{
+    uint8_t tx[2];
+    tx[0] = 0xc0; // Program Change
+    tx[1] = sound;
+    const uint8_t buflen = sizeof(tx);
+    const uint8_t nwritten = midi_uart_write_tx_buffer(midi_uart_instance, tx, buflen);
+    if (nwritten != buflen) {
+        TU_LOG1("Warning: Dropped %lu bytes sending to UART MIDI Out\r\n", buflen - nwritten);
+    }
+}
 
+int main() {
     bi_decl(bi_program_description("Provide a USB host interface for Serial Port MIDI."));
     bi_decl(bi_1pin_with_name(LED_GPIO, "On-board LED"));
     bi_decl(bi_2pins_with_names(MIDI_UART_TX_GPIO, "MIDI UART TX", MIDI_UART_RX_GPIO, "MIDI UART RX"));
+
+    stdio_init_all();
+
+    // Sleep 8 seconds to give enough time to connect up a terminal
+    sleep_ms(8000);
 
     board_init();
     printf("Pico MIDI Host to MIDI UART Adapter\r\n");
@@ -101,12 +131,25 @@ int main() {
     // Map the pins to functions
     midi_uart_instance = midi_uart_configure(MIDI_UART_NUM, MIDI_UART_TX_GPIO, MIDI_UART_RX_GPIO);
     printf("Configured MIDI UART %u for 31250 baud\r\n", MIDI_UART_NUM);
+
+    // Uncomment the below line to reverse the counting direction
+    // enc.direction(REVERSED_DIR);
+
+    enc.init();
+    printf("Sound = %d\n", sound + 1);
+
     while (1) {
         tuh_task();
-
         blink_led();
-        bool connected = midi_dev_addr != 0 && tuh_midi_configured(midi_dev_addr);
 
+        if (enc.delta() != 0)
+        {
+            sound = enc.count() % GM_PROGRAM_NUMBER_SIZE;
+            write_midi_uart_program_change(sound);
+            printf("Sound = %d\n", sound + 1);
+        }
+
+        const bool connected = midi_dev_addr != 0 && tuh_midi_configured(midi_dev_addr);
         poll_midi_uart_rx(connected);
         if (connected)
             tuh_midi_stream_flush(midi_dev_addr);
