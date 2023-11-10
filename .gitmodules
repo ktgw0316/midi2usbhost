@@ -10,3 +10,6 @@
 [submodule "lib/pimoroni-pico"]
 	path = lib/pimoroni-pico
 	url = https://github.com/pimoroni/pimoroni-pico.git
+[submodule "lib/pico-ssd1306"]
+	path = lib/pico-ssd1306
+	url = https://github.com/Harbys/pico-ssd1306.git

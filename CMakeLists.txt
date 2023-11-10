@@ -15,6 +15,7 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/midi_uart_lib)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/usb_midi_host)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/pimoroni-pico/common)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/pimoroni-pico/drivers/encoder)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/pico-ssd1306)
 
 add_executable(${target_proj}
     midi2usbhost.cpp
@@ -52,6 +53,6 @@ target_include_directories(${target_proj} PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CM
 
 target_link_options(${target_proj} PRIVATE -Xlinker --print-memory-usage)
 target_compile_options(${target_proj} PRIVATE -Wall -Wextra)
-target_link_libraries(${target_proj} midi_uart_lib tinyusb_host tinyusb_board ring_buffer_lib pico_stdlib usb_midi_host_app_driver encoder)
+target_link_libraries(${target_proj} midi_uart_lib tinyusb_host tinyusb_board ring_buffer_lib pico_stdlib usb_midi_host_app_driver encoder pico_ssd1306 hardware_i2c)
 
 pico_add_extra_outputs(${target_proj})

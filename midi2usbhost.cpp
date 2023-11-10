@@ -34,6 +34,7 @@
 #include "tusb.h"
 #include "usb_midi_host.h"
 #include "encoder.hpp"
+#include "pico-ssd1306/textRenderer/TextRenderer.h"
 
 // On-board LED mapping. If no LED, set to NO_LED_GPIO
 constexpr uint NO_LED_GPIO = 255;
@@ -65,8 +66,8 @@ constexpr uint PIN_B = 28;  // The B channel pin
 constexpr uint PIN_C = 27;  // The common pin
 Encoder enc(pio0, 0, {PIN_A, PIN_B}, PIN_C);
 
-constexpr int GM_PROGRAM_NUMBER_SIZE = 128;
-int sound = 0;
+constexpr uint8_t GM_PROGRAM_NUMBER_SIZE = 128;
+uint8_t sound = 0;
 
 static void blink_led(void)
 {
@@ -87,6 +88,25 @@ static void blink_led(void)
     }
 }
 
+static void init_display(void)
+{
+    constexpr uint I2C_PORT = 0;
+    constexpr uint I2C_PIN_SDA = 4;
+    constexpr uint I2C_PIN_SCL = 5;
+
+    i2c_init(I2C_PORT, 1000000);
+    gpio_set_function(I2C_PIN_SDA, GPIO_FUNC_I2C);
+    gpio_set_function(I2C_PIN_SCL, GPIO_FUNC_I2C);
+    gpio_pull_up(I2C_PIN_SDA);
+    gpio_pull_up(I2C_PIN_SCL);
+}
+
+static void sound_name(char *buf, const uint8_t sound)
+{
+    // TODO
+    sprintf(buf, sizeof(buf), "Sound = %d", sound + 1);
+}
+
 static void poll_midi_uart_rx(bool connected)
 {
     uint8_t rx[48];
@@ -102,7 +122,7 @@ static void poll_midi_uart_rx(bool connected)
     }
 }
 
-static void write_midi_uart_program_change(int sound)
+static void write_midi_uart_program_change(const uint8_t sound)
 {
     uint8_t tx[2];
     tx[0] = 0xc0; // Program Change
@@ -138,6 +158,10 @@ int main() {
     enc.init();
     printf("Sound = %d\n", sound + 1);
 
+    // Create a new display object
+    init_display();
+    pico_ssd1306::SSD1306 display = pico_ssd1306::SSD1306(I2C_PORT, 0x3D, pico_ssd1306::Size::W128xH64);
+
     while (1) {
         tuh_task();
         blink_led();
@@ -147,6 +171,10 @@ int main() {
             sound = enc.count() % GM_PROGRAM_NUMBER_SIZE;
             write_midi_uart_program_change(sound);
             printf("Sound = %d\n", sound + 1);
+
+            char *str[12]; // 128/12 = 10.6, so 12 chars is enough
+            sound_name(str, sound);
+            drawText(&display, font_12x16, str, 0, 0);
         }
 
         const bool connected = midi_dev_addr != 0 && tuh_midi_configured(midi_dev_addr);
