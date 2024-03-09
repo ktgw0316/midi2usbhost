@@ -310,6 +310,7 @@ int main() {
     init_display();
     // pico_ssd1306::SSD1306 display(i2c0, 0x3D, pico_ssd1306::Size::W128xH64);
     pico_ssd1306::SSD1306 display(i2c0, 0x3C, pico_ssd1306::Size::W128xH32);
+    display.setOrientation(0);
     display_sound_name(&display, sound);
 
     while (1) {
