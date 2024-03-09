@@ -104,7 +104,7 @@ static void init_display(void)
 const char sound_names[128][33] = {
     /*   1 */ "Acoustic Piano",
     /*   2 */ "Bright Piano",
-    /*   3 */ "Elec.Grand Piano"
+    /*   3 */ "Elec.Grand Piano",
     /*   4 */ "Honky-tonk Piano",
     /*   5 */ "Electric Piano 1",
     /*   6 */ "Electric Piano 2",
