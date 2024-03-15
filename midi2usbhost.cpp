@@ -296,17 +296,25 @@ int main() {
     while (1) {
         tuh_task();
 
-        if (enc.delta() != 0) {
-            sound = positive_modulo(enc.count(), GM_PROGRAM_NUMBER_SIZE);
-            write_midi_uart_program_change(sound);
-            display_sound_name(&display, sound);
-        }
-
         const bool connected = midi_dev_addr != 0 && tuh_midi_configured(midi_dev_addr);
         poll_midi_uart_rx(connected);
         if (connected)
             tuh_midi_stream_flush(midi_dev_addr);
+
         midi_uart_drain_tx_buffer(midi_uart_instance);
+
+        if (enc.delta() != 0) {
+            sound = positive_modulo(enc.count(), GM_PROGRAM_NUMBER_SIZE);
+            write_midi_uart_program_change(sound);
+            midi_uart_drain_tx_buffer(midi_uart_instance);
+
+            // Flash the LED to indicate a program change
+            board_led_write(true);
+            sleep_ms(100);
+            board_led_write(false);
+
+            display_sound_name(&display, sound);
+        }
     }
 }
 
