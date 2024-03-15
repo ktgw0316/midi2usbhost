@@ -69,25 +69,6 @@ Encoder enc(pio0, 0, {PIN_A_GPIO, PIN_B_GPIO}, PIN_C_GPIO);
 constexpr uint8_t GM_PROGRAM_NUMBER_SIZE = 128;
 uint8_t sound = 0;
 
-static void blink_led(void)
-{
-    static absolute_time_t previous_timestamp = {0};
-
-    static bool led_state = false;
-
-    // This design has no on-board LED
-    if (NO_LED_GPIO == LED_GPIO)
-        return;
-    absolute_time_t now = get_absolute_time();
-
-    int64_t diff = absolute_time_diff_us(previous_timestamp, now);
-    if (diff > 1000000) {
-        board_led_write(led_state);
-        led_state = !led_state;
-        previous_timestamp = now;
-    }
-}
-
 static void init_display(void)
 {
     constexpr uint I2C_SDA_GPIO = 20;
@@ -289,11 +270,10 @@ int main() {
 
     stdio_init_all();
 
-    // Sleep 8 seconds to give enough time to connect up a terminal
-    sleep_ms(8000);
-
     board_init();
-    blink_led();
+    board_led_write(true);
+    sleep_ms(500);
+    board_led_write(false);
     printf("Pico MIDI Host to MIDI UART Adapter\r\n");
     tusb_init();
 
