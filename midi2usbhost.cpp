@@ -305,8 +305,6 @@ int main() {
 
         if (enc.delta() != 0) {
             sound = positive_modulo(enc.count(), GM_PROGRAM_NUMBER_SIZE);
-            write_midi_uart_program_change(sound);
-            midi_uart_drain_tx_buffer(midi_uart_instance);
 
             // Flash the LED to indicate a program change
             board_led_write(true);
@@ -362,6 +360,8 @@ void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets)
             uint8_t cable_num;
             uint8_t buffer[48];
             while (1) {
+                write_midi_uart_program_change(sound);
+
                 uint32_t bytes_read = tuh_midi_stream_read(dev_addr, &cable_num, buffer, sizeof(buffer));
                 if (bytes_read == 0)
                     return;
