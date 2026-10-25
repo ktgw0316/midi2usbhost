@@ -13,9 +13,10 @@ pico_sdk_init()
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/midi_uart_lib)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/pimoroni-pico/common)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/pimoroni-pico/drivers/encoder)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/pico_st7735_80x160)
 
 add_executable(midi2usbhost
-    midi2usbhost.c
+    midi2usbhost.cpp
 )
 if(DEFINED ENV{MIDI_UART_NUM})
     set(MIDI_UART_NUM $ENV{MIDI_UART_NUM})
@@ -46,11 +47,11 @@ else()
     # not defined, so will be UART 1. Can enable UART 0 debugging
     pico_enable_stdio_uart(midi2usbhost 1)
 endif()
-target_include_directories(midi2usbhost PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/lib/pimoroni-pico/drivers/encoder)
+target_include_directories(midi2usbhost PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/lib/pimoroni-pico ${CMAKE_CURRENT_LIST_DIR}/lib/pimoroni-pico/common ${CMAKE_CURRENT_LIST_DIR}/lib/pimoroni-pico/drivers/encoder ${CMAKE_CURRENT_LIST_DIR}/lib/pico_st7735_80x160)
 
 target_link_options(midi2usbhost PRIVATE -Xlinker --print-memory-usage)
 target_compile_options(midi2usbhost PRIVATE -Wall -Wextra)
-target_link_libraries(midi2usbhost midi_uart_lib tinyusb_host tinyusb_board ring_buffer_lib pico_stdlib encoder)
+target_link_libraries(midi2usbhost midi_uart_lib tinyusb_host tinyusb_board ring_buffer_lib pico_stdlib encoder pico_st7735_80x160)
 if(DEFINED PICO_BOARD)
 if(${PICO_BOARD} MATCHES "adafruit_feather_rp2040_usb_host")
 message("Adding Pico PIO USB library for Adafruit Feather RP2040 USB Host board")

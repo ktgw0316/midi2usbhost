@@ -33,6 +33,8 @@
 #include "bsp/board_api.h"
 #include "tusb.h"
 #include "enc.hpp"
+#include "sound_names.h"
+#include "tft.h"
 
 // UART selection Pin mapping. You can move these for your design if you want to
 // Make sure all these values are consistent with your choice of midi_uart
@@ -70,6 +72,19 @@ static void blink_led(void)
         led_state = !led_state;
         previous_timestamp = now;
     }
+}
+
+static void display_sound_name(const uint8_t sound)
+{
+    clear_display();
+
+    // Top line is the General MIDI sound number
+    char midi_sound_num[4];
+    snprintf(midi_sound_num, sizeof(midi_sound_num), "%d", sound + 1);
+    display_text(midi_sound_num, 0);
+
+    // Next line is the sound name
+    display_text(sound_names[sound], 1);
 }
 
 inline uint32_t positive_modulo(int32_t dividend, uint32_t divisor) {
@@ -135,6 +150,9 @@ int main() {
 
     Encoder enc = init_encoder();
 
+    init_display();
+    display_sound_name(sound);
+
     while (1) {
         sleep_ms(100);
 
@@ -180,6 +198,7 @@ int main() {
             board_led_write(false);
 
             printf("Sound = %d\n", sound + 1);
+            display_sound_name(sound);
         }
     }
 }
