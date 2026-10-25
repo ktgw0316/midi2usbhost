@@ -4,3 +4,6 @@
 [submodule "lib/ring_buffer_lib"]
 	path = C-Code/lib/ring_buffer_lib
 	url = https://github.com/rppicomidi/ring_buffer_lib
+[submodule "C-Code/lib/pimoroni-pico"]
+	path = C-Code/lib/pimoroni-pico
+	url = https://github.com/pimoroni/pimoroni-pico.git

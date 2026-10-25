@@ -2,7 +2,7 @@
  * @file Pico-USB-Host-MIDI-Adapter.c
  * @brief A USB Host to Serial Port MIDI adapter that runs on a Raspberry Pi
  * Pico board
- * 
+ *
  * MIT License
 
  * Copyright (c) 2022 rppicomidi
@@ -24,7 +24,7 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- * 
+ *
  */
 #include <stdio.h>
 #include "pico/stdlib.h"
@@ -32,6 +32,7 @@
 #include "midi_uart_lib.h"
 #include "bsp/board_api.h"
 #include "tusb.h"
+#include "enc.hpp"
 
 // UART selection Pin mapping. You can move these for your design if you want to
 // Make sure all these values are consistent with your choice of midi_uart
@@ -52,6 +53,9 @@ static void *midi_uart_instance;
 static uint8_t dev_idx = TUSB_INDEX_INVALID_8;
 static bool update_strings = false;
 
+constexpr int GM_PROGRAM_NUMBER_SIZE = 128;
+int sound = 0;
+
 static void blink_led(void)
 {
     static absolute_time_t previous_timestamp = {0};
@@ -59,13 +63,17 @@ static void blink_led(void)
     static bool led_state = false;
 
     absolute_time_t now = get_absolute_time();
-    
+
     int64_t diff = absolute_time_diff_us(previous_timestamp, now);
     if (diff > 1000000) {
         board_led_write(led_state);
         led_state = !led_state;
         previous_timestamp = now;
     }
+}
+
+inline uint32_t positive_modulo(int32_t dividend, uint32_t divisor) {
+    return (dividend % divisor + divisor) % divisor;
 }
 
 static void poll_midi_uart_rx(bool connected)
@@ -95,10 +103,27 @@ static void print_string_descriptor(uint16_t *buffer)
     printf("\r\n");
 }
 
+static void write_midi_uart_program_change(int sound)
+{
+    uint8_t tx[2];
+    tx[0] = 0xc0; // Program Change
+    tx[1] = sound;
+    const uint8_t buflen = sizeof(tx);
+    const uint8_t nwritten = midi_uart_write_tx_buffer(midi_uart_instance, tx, buflen);
+    if (nwritten != buflen) {
+        TU_LOG1("Warning: Dropped %lu bytes sending to UART MIDI Out\r\n", buflen - nwritten);
+    }
+}
+
 int main() {
 
     bi_decl(bi_program_description("Provide a USB host interface for Serial Port MIDI."));
     bi_decl(bi_2pins_with_names(MIDI_UART_TX_GPIO, "MIDI UART TX", MIDI_UART_RX_GPIO, "MIDI UART RX"));
+
+    stdio_init_all();
+
+    // Sleep 2 seconds to give enough time to connect up a terminal
+    sleep_ms(2000);
 
     board_init();
     printf("Pico MIDI Host to MIDI UART Adapter\r\n");
@@ -107,7 +132,12 @@ int main() {
     // Map the pins to functions
     midi_uart_instance = midi_uart_configure(MIDI_UART_NUM, MIDI_UART_TX_GPIO, MIDI_UART_RX_GPIO);
     printf("Configured MIDI UART %u for 31250 baud\r\n", MIDI_UART_NUM);
+
+    Encoder enc = init_encoder();
+
     while (1) {
+        sleep_ms(100);
+
         tuh_task();
 
         blink_led();
@@ -138,7 +168,18 @@ int main() {
                     print_string_descriptor(buffer);
                 }
             }
-            
+
+        }
+
+        if (enc.delta() != 0) {
+            sound = positive_modulo(enc.count(), GM_PROGRAM_NUMBER_SIZE);
+
+            // Flash the LED to indicate a program change
+            board_led_write(true);
+            sleep_ms(100);
+            board_led_write(false);
+
+            printf("Sound = %d\n", sound + 1);
         }
     }
 }
@@ -183,6 +224,7 @@ void tuh_midi_rx_cb(uint8_t idx, uint32_t num_bytes)
             uint8_t cable_num;
             uint8_t buffer[48];
             while (1) {
+                write_midi_uart_program_change(sound);
                 uint32_t bytes_read = tuh_midi_stream_read(idx, &cable_num, buffer, sizeof(buffer));
                 if (bytes_read == 0)
                     return;
